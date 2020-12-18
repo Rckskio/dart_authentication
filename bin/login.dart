@@ -10,13 +10,13 @@ void main() async{
   var uniqueName = false;
 
   while(uniqueName == false) {
-    stdout.write('User Name: ');
+    stdout.write('Username: ');
     inputName = stdin.readLineSync();
     var file = File(_default_path.path + inputName);
     if (file.existsSync()) {
       uniqueName = true;
     } else {
-      print('Wrong user name or user name not registered!');
+      print('Wrong username or username not registered!');
     }
   }
 

@@ -10,16 +10,16 @@ final _data = [];
 Future<void> main() async{
   var _correctInput = false;
   while(_correctInput == false) {
-    stdout.write('User Name: ');
+    stdout.write('Username: ');
     _inputName = stdin.readLineSync();
     if (_checkFileExist(_inputName)) {
-      print('User Name not available!');
+      print('Username not available!');
     } else if (_inputName.isEmpty){
-      print('Empty name not allowed');
+      print('Empty username not allowed');
     } else if(_validateName(_inputName)){
       _correctInput = true;
     } else {
-      print('User Name should contain only Letters and Numbers, without empty space');
+      print('Username should contain only Letters and Numbers, without empty space');
     }
   }
 
@@ -35,7 +35,7 @@ Future<void> main() async{
       var _encrypted = await encrypt.encrypt(_userName, _password);
       var dateNow = _getDate();
       _data.add('User Information:');
-      _data.add('User Name: $_userName');
+      _data.add('Username: $_userName');
       _data.add('Date: ${dateNow[0]}');
       _data.add('Time: ${dateNow[1]} ${dateNow[2]}');
       _data.add('Salt: ${_encrypted[1]}');
