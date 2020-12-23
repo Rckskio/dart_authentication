@@ -5,7 +5,6 @@ import 'package:encryption/encrypt.dart' as encrypt;
 import 'package:encryption/default_path.dart' as _default_path;
 
 var _inputName = '';
-final _data = [];
 
 Future<void> main() async{
   var _correctInput = false;
@@ -34,17 +33,14 @@ Future<void> main() async{
       final _password = _input;
       var _encrypted = await encrypt.encrypt(_userName, _password);
       var dateNow = _getDate();
-      _data.add('User Information:');
-      _data.add('Username: $_userName');
-      _data.add('Date: ${dateNow[0]}');
-      _data.add('Time: ${dateNow[1]} ${dateNow[2]}');
-      _data.add('Salt: ${_encrypted[1]}');
-      _data.add('Hash: ${_encrypted[0]}');
+      await saveUserInfo(_userName, dateNow[0], dateNow[1], _encrypted[1]);
+      var lastId = await getLastId();
+      await saveUserHash('${_encrypted[0]}', lastId);
 
-      await _saveFile(_userName);
-
+      print('$_userName registered successfully!');
       exitCode = 0;
       exit(exitCode);
+
     }
   }
 }
@@ -95,17 +91,6 @@ String _readHidden() {
   return Encoding.getByName('utf-8').decode(_value);
 }
 
-// Function to save generated hash to a file, could be replaced to save to a Database
-Future _saveFile(String _userName) async {
-  final _userFile = File(_default_path.path + _userName);
-
-  for (var info in _data) {
-    await _userFile.writeAsString('$info\n', mode: FileMode.append);
-  }
-
-  _validateSave(_userFile) ? print('$_userName registered successfully!') : print('Something went wrong =(');
-}
-
 bool _checkFileExist(String _userName) {
   return File(_default_path.path + _userName).existsSync() && _userName.isNotEmpty;
 }
@@ -137,6 +122,24 @@ bool _validateName(String _userName) {
   return RegExp(r'^[a-zA-Z0-9]+$').hasMatch(_userName);
 }
 
-bool _validateSave(File _userFile) {
-  return _userFile.existsSync();
+Future<void> saveUserInfo(String userName, String date, String time, String salt) async {
+  var _database = '/home/rick/Databases/sqlite3dbs/usersdev.db';
+  var process = 'sqlite3';
+  var query = 'INSERT INTO users (username, date, time, salt) VALUES("$userName", "$date", "$time", "$salt")';
+  await Process.start(process, [_database, query]);
+}
+
+Future<void> saveUserHash(String _hash, int _id) async {
+  var _database = '/home/rick/Databases/sqlite3dbs/hashs/usershashdev.db';
+  var process = 'sqlite3';
+  var query = 'INSERT INTO hashs (id, hash) VALUES($_id, "$_hash")';
+  await Process.start(process, [_database, query]);
+}
+
+Future<int> getLastId() async {
+  var _database = '/home/rick/Databases/sqlite3dbs/usersdev.db';
+  var query = 'sqlite3';
+  var last = '';
+  await Process.run(query, ['$_database', 'SELECT id FROM users'], stdoutEncoding: utf8).then((value) => last = value.stdout.toString().replaceAll('\n', ''));
+  return int.parse(last.toString()[last.toString().length - 1]);
 }
