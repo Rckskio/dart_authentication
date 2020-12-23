@@ -141,5 +141,5 @@ Future<int> getLastId() async {
   var query = 'sqlite3';
   var last = '';
   await Process.run(query, ['$_database', 'SELECT id FROM users'], stdoutEncoding: utf8).then((value) => last = value.stdout.toString().replaceAll('\n', ''));
-  return int.parse(last.toString()[last.toString().length - 1]);
+  return int.parse(last);
 }
