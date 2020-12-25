@@ -1,120 +1,94 @@
-import'dart:io';
-import 'dart:convert';
-import 'dart:cli';
+import 'dart:io';
 import 'package:encryption/encrypt.dart' as encrypt;
-import 'package:encryption/default_path.dart' as _default_path;
+import 'package:encryption/default_path.dart' as env;
 
 var _inputName = '';
+final _process = 'sqlite3';
+final _usersDb = '${env.usersPath}/${env.usersDb}';
+final _hashesDb = '${env.hashesPath}/${env.hashesDb}';
 
-Future<void> main() async{
-  var _correctInput = false;
-  while(_correctInput == false) {
+void main() async {
+  await _createUsersTable();
+  await _createHashesTable();
+  var _validInput = false;
+  while (_validInput == false) {
     stdout.write('Username: ');
     _inputName = stdin.readLineSync();
-    if (_checkFileExist(_inputName)) {
+    if (await _checkUserExist(_inputName)) {
       print('Username not available!');
-    } else if (_inputName.isEmpty){
+    } else if (_inputName.isEmpty) {
       print('Empty username not allowed');
-    } else if(_validateName(_inputName)){
-      _correctInput = true;
+    } else if (_validateName(_inputName)) {
+      _validInput = true;
     } else {
-      print('Username should contain only Letters and Numbers, without empty space');
+      print(
+          'Username should contain only Letters and Numbers, without empty space');
     }
   }
 
-  _correctInput = false;
+  _validInput = false;
   final _userName = _inputName;
-  while (_correctInput == false) {
-    stdout.write('Password: ');
-    var _input = _readHidden();
-    if (_input.length < 8) {
-      print('Attention! Password should be at least 8 characters long!');
-    } else {
-      final _password = _input;
-      var _encrypted = await encrypt.encrypt(_userName, _password);
-      var dateNow = _getDate();
-      await saveUserInfo(_userName, dateNow[0], dateNow[1], _encrypted[1]);
-      var lastId = await getLastId();
-      await saveUserHash('${_encrypted[0]}', lastId);
 
-      print('$_userName registered successfully!');
-      exitCode = 0;
-      exit(exitCode);
-
-    }
-  }
-}
-
-// Function created by Brett Sutton from the project dcli https://github.com/bsutton/dcli/tree/0.34.6-linux
-// Extracted from lib/src/functions/ask.dart and no changes were made.
-String _readHidden() {
-  const _backspace = 127;
-  const _space = 32;
-  const _ = 8;
-  var _value = <int>[];
-
-  try {
+  while (_validInput == false) {
     stdin.echoMode = false;
-    stdin.lineMode = false;
-    int _char;
-    do {
-      _char = stdin.readByteSync();
-      if (_char != 10) {
-        if (_char == _backspace) {
-          if (_value.isNotEmpty) {
-            // move back a character,
-            // print a space an move back again.
-            // required to clear the current character
-            // move back one space.
-            stdout.writeCharCode(_);
-            stdout.writeCharCode(_space);
-            stdout.writeCharCode(_);
-            _value.removeLast();
-          }
+    stdout.write('Password: ');
+    var _input = stdin.readLineSync();
+    print('*' * _input.length);
+    if (_input.length < 8) {
+      print('Your Password should be at least 8 characters long!');
+    } else {
+      stdout.write('Enter Password again: ');
+      var _confirmInput = stdin.readLineSync();
+      print('*' * _confirmInput.length);
+      if (_confirmInput != _input) {
+        print('Password entered do not match, please try again.');
+      } else {
+        final _password = _input;
+        var _encrypted = await encrypt.encrypt(_userName, _password);
+        var dateNow = _getDate();
+
+        if (exitCode == 0) {
+          await _saveUserInfo(_userName, dateNow[0],
+              '${dateNow[1]} ${dateNow[2]}', _encrypted[1]);
+          final lastId = await _getLastId();
+          await _saveUserHash('${_encrypted[0]}', lastId);
+          print('$_userName registered successfully!');
+          _validInput = true;
         } else {
-          stdout.write('*');
-          // we must wait for flush as only one flush can be outstanding at a time.
-          waitFor<void>(stdout.flush());
-          _value.add(_char);
+          print('Something went wrong, please try again later');
+          break;
         }
       }
-    } while (_char != 10);
-  } finally {
-    stdin.echoMode = true;
-    stdin.lineMode = true;
+    }
   }
-
-  // output a newline as we have suppressed it.
-  print('');
-
-  // return the entered value as a String.
-  return Encoding.getByName('utf-8').decode(_value);
 }
 
-bool _checkFileExist(String _userName) {
-  return File(_default_path.path + _userName).existsSync() && _userName.isNotEmpty;
+// Create table for users information
+Future<void> _createUsersTable() async {
+  await Directory(env.usersPath).create(recursive: true);
+
+  final _query =
+      'CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT NOT NULL, date TEXT NOT NULL, time TEXT NOT NULL, salt TEXT NOT NULL)';
+  await Process.run(_process, [_usersDb, _query]);
 }
 
-List _getDate() {
-  var today = DateTime.now();
-  var year = today.year;
-  var month = today.month;
-  var day = today.day;
-  var hour = today.hour;
-  var minute = today.minute;
-  var second = today.second;
+// Create table to store hash value of respective user
+Future<void> _createHashesTable() async {
+  await Directory(env.hashesPath).create(recursive: true);
 
-  var currentDate ="${year.toString()}-${month.toString().padLeft(2,'0')}-${day.toString().padLeft(2,'0')}";
-  var currentTime = "${hour.toString().padLeft(2,'0')}"
-      ":${minute.toString().padLeft(2,'0')}:${second.toString().padLeft(2,'0')}";
+  final _query =
+      'CREATE TABLE IF NOT EXISTS hashes (id INTEGER PRIMARY KEY, hash TEXT NOT NULL)';
+  await Process.run(_process, [_hashesDb, _query]);
+}
 
-  // previously made, same result of current return statement.
-  // var date = [];
-  // date.add(currentDate);
-  // date.add('$currentTime ${hour > 11 ? 'PM' : 'AM'}');
+Future<bool> _checkUserExist(String _userInput) async {
+  final _query = 'SELECT username FROM users WHERE username = "$_userInput"';
+  final _username =
+      await Process.run(_process, [_usersDb, _query]);
 
-  exitCode = 0;
-  return [currentDate, currentTime, '${hour > 11 ? 'PM' : 'AM'}'];
+  _username.stderr.toString().isNotEmpty ? exitCode = 1 : null;
+
+  return _userInput == _username.stdout.toString().replaceAll('\n', '');
 }
 
 bool _validateName(String _userName) {
@@ -122,24 +96,38 @@ bool _validateName(String _userName) {
   return RegExp(r'^[a-zA-Z0-9]+$').hasMatch(_userName);
 }
 
-Future<void> saveUserInfo(String userName, String date, String time, String salt) async {
-  var _database = '/home/rick/Databases/sqlite3dbs/usersdev.db';
-  var process = 'sqlite3';
-  var query = 'INSERT INTO users (username, date, time, salt) VALUES("$userName", "$date", "$time", "$salt")';
-  await Process.start(process, [_database, query]);
+Future<void> _saveUserInfo(
+    String userName, String date, String time, String salt) async {
+  final _query =
+      'INSERT INTO users (username, date, time, salt) VALUES("$userName", "$date", "$time", "$salt")';
+  await Process.run(_process, [_usersDb, _query]);
 }
 
-Future<void> saveUserHash(String _hash, int _id) async {
-  var _database = '/home/rick/Databases/sqlite3dbs/hashs/usershashdev.db';
-  var process = 'sqlite3';
-  var query = 'INSERT INTO hashs (id, hash) VALUES($_id, "$_hash")';
-  await Process.start(process, [_database, query]);
+Future<void> _saveUserHash(String _hash, int _id) async {
+  final _query = 'INSERT INTO hashes (id, hash) VALUES($_id, "$_hash")';
+  await Process.run(_process, [_hashesDb, _query]);
 }
 
-Future<int> getLastId() async {
-  var _database = '/home/rick/Databases/sqlite3dbs/usersdev.db';
-  var query = 'sqlite3';
-  var last = '';
-  await Process.run(query, ['$_database', 'SELECT id FROM users'], stdoutEncoding: utf8).then((value) => last = value.stdout.toString().replaceAll('\n', ''));
-  return int.parse(last);
+Future<int> _getLastId() async {
+  final _query = 'SELECT id FROM users ORDER BY id DESC LIMIT 1';
+  var last = await Process.run(_process, [_usersDb, _query]);
+
+  return int.parse(last.stdout.toString());
+}
+
+List _getDate() {
+  var currentTime = DateTime.now();
+  var year = currentTime.year;
+  var month = currentTime.month;
+  var day = currentTime.day;
+  var hour = currentTime.hour;
+  var minute = currentTime.minute;
+  var second = currentTime.second;
+
+  var currentDate =
+      "${year.toString()}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}";
+  var currentHour = "${hour.toString().padLeft(2, '0')}"
+      ":${minute.toString().padLeft(2, '0')}:${second.toString().padLeft(2, '0')}";
+
+  return [currentDate, currentHour, '${hour > 11 ? 'PM' : 'AM'}'];
 }

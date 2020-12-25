@@ -1,16 +1,19 @@
 # Dart Authentication
-A simple program to register user and validate a login using hash256 with salt.
-This version is using text file to store the information, but ideally should use a secure database.
+A simple program to register user and validate a login using hash 256 with salt.
+This version is implemented to save all the information on Sqlite3 Database.
 
 ## How it works:
-On **register.dart** the user enter a username and password, the program then validate if the username is available, in this case, it checks if the file with the same name already exists on the defined path, but again it could be a database query to verify the same information, once a valid username is typed the user is prompted to enter a password, the password should be at least 8 characters long. Upon entering a valid password, the program starts the process to hash and salt the password, first generating a random salt, then it applies the salt to the password and hash. It does this process for as mine times as desired, but by default it will do 2^16 = 65536 times + 1 time. To apply the salt to the password I used I very simple function to mix the words.
+On **register.dart** the user enter a username and password, the program then validate if the username is available, in this case, it checks if the username is already registered on the database, once a valid username is typed the user is prompted to enter a password, the password should be at least 8 characters long. Upon entering a valid password, the program starts the process to hash and salt the password, first generating a random salt, then it applies the salt to the password and hash. It does this process for as mine times as desired, but by default it will do 2^16 = 65536 times + 1 time. To apply the salt to the password I used I very simple function to mix the words.
 
-Once it finishes hashing the password, it will save the information necessary for validate the user when the user try to log in, that's where it creates a file and save the information: Username, Date, Time, Salt, and Hash. Again, should save this information on a secure database.
+Once it finishes hashing the password, it will save the information necessary for validate the user when the user try to log in, that's when the program queries the database to save the following information: id, username, date, time, salt, and on a separated table save id and hash.
 
 That's it for the registration, now the user can log in using the username and password.
 
-On **login.dart** the process is almost the same, but this time when the user enters a name the program validate if the user is already registered, verifying the files created, if doesn't find, inform the user that there is no user with the name or username is wrong.
-To validate the password, once the user enter a valid name and a password, the program open the file for the specific username and read the salt value, as I was working with text file, it extracts this value from a line where contains the word "Salt:", it would be easier to get this data from a database. Upon getting the salt generate for the user, it does the same process as in registration, but this time without generating new salt because the user already has one. Once it finishes the program compare if the hash generated with the password provided by the user is the same as the hash generate on registration. If matched, success! if don't, display Wrong password, the user has 3 chances to enter the correct password otherwise the program finishes.
+On **login.dart** the process is almost the same, but this time when the user enters a name the program validate if the user is already registered, querying the users' database, if doesn't find, inform the user username not registered.
+To validate the password, once the user enter a valid name and a password, 
+first it will get the original salt value from the user registered and encrypt the password typed with the same process before,
+but this time with a specific salt value, then it will get the user id to retrieve the hash of the specific id and compare the results.
+if the values don't match, the program print "Wrong password", if too many attempts the program finish.
 
 # How to use
 To use this program without compile it, it's necessary to have Dart SDK installed, to install it see https://dart.dev/get-dart
@@ -52,11 +55,4 @@ Then
 
 See LICENSE
 
-# Mention
-The function to read input from terminal without displaying the password I got from another project, see https://github.com/bsutton/dcli
-
-Function extracted from: https://github.com/bsutton/dcli/blob/master/lib/src/functions/ask.dart
-
-Name of the function: **String _readHidden()**
-
-Author: Brett Sutton
+Obs. I removed the function _readHidden() to read the input password because of unknown bug.
